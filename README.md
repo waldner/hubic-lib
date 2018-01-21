@@ -104,14 +104,14 @@ hubic_list_containers
 
 # hubic_object_list is set by the previous function
 for container in "${hubic_object_list[@]}"; do
-  echo "container: $container"
+  : # do something with "$container"
 done
 
 # list files (really objects), optionally specify a path
 hubic_list_files -c newcontainer -p foobar
 
 for object in "${hubic_object_list[@]}"; do
-  echo "object: $object"
+  : # do something with "$object"
 done
 
 # when done, cleanup
