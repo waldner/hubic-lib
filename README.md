@@ -1,19 +1,40 @@
 # hubic_lib
 
 This is a knocked-together, "Works for me (TM)" shell library to interact with HubiC storage: upload/download files, create containers, etc. NOT ALL OF THE API IS IMPLEMENTED. See https://developer.openstack.org/api-ref/object-store/ for the full API.
-The only dependencies needed are bash, curl and perl.
 
 Yes, all communication in the library is via global variables.
 
-### Getting started
 
-Create an application in your HubiC control panel. Name it whatever you want, and use a made-up return URL (eg, http://localhost/).
+## Dependencies
 
-You have to source hubic_lib.sh in your script, and implement a function called **hubic_get_userdef_credentials** that sets some environment variables with suitable values (hubic_login and hubic_pass you should know, and the others can be found in your HubiC control panel app settings). See below.
+The only dependencies needed are [bash](https://www.gnu.org/software/bash/), [curl](https://curl.haxx.se/) and [perl](https://www.perl.org/). Well, and **rm**, but if you don't have that you have bigger problems than not being able to use this library.
 
-See also the included sample_backup.sh script.
+## Installation
 
-Sample code:
+No special installation needed. Just put **hubic_lib.sh** wherever you want. You have to know the location because you'll have to source it in your script.
+
+## Getting started
+
+- Create an application in your HubiC control panel. Name it whatever you want, and use a made-up return URL (eg, http://localhost/). It's not used here, but it has to be present.
+
+- Source hubic_lib.sh in your script
+
+- Implement a function called `hubic_get_userdef_credentials` that sets some environment variables with suitable values (`hubic_login` and `hubic_pass` you should know, and the others can be found in your HubiC control panel app settings). See below.
+
+- Call `hubic_api_init` and check that it returns without errors.
+
+- At this point, you can perform storage operation by invoking functions like `hubic_upload_file`, `hubic_delete_container` and others. See below for more.
+
+- When you're done using the storage, call `hubic_api_cleanup`.
+
+- Profit. 
+
+
+## Sample code
+
+
+(See also the included `sample_backup.sh` script.)
+
 
 ```
 #!/bin/bash
