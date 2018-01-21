@@ -33,6 +33,7 @@ Sourcing the library gives you access to a very rudimental log function called `
 ## Internals
 
 Internal communication is via global variables. Yes, I know. This is bash.
+
 Since the REST API sometimes fails with transient errors, each operation defines a series of HTTP return codes upon which the function is considered to have completed; any other HTTP code produces a retry of the operation, up to a maximum, by default, of 3 times.
 
 ## Sample code
