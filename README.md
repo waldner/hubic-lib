@@ -36,6 +36,10 @@ Internal communication is via global variables. Yes, I know. This is bash.
 
 Since the REST API sometimes fails with transient errors, each operation defines a series of HTTP return codes upon which the function is considered to have completed; any other HTTP code produces a retry of the operation, up to a maximum, by default, of 3 times.
 
+After each file API function invocation, the three variables `hubic_last_http_headers`, `hubic_last_http_body` and `hubic_last_http_code` contain what their name says, so they can be inspected in your code for extra control. After operations that return lists of objects, the array `hubic_object_list` is set with such list, and can be accessed from your code.
+
+Each file API operation ends up invoking `hubic_do_operation` internally, after setting the appropriate global variables. `hubic_do_operation`, in turn, calls `hubic_do_single_operation` handling retries in case of transient errors. Finally,  `hubic_do_single_operation` calls `hubic_do_curl` (which does the actual curl invocation) and returns success or failure (based on the HTTP return code) all the way up.
+
 ## Sample code
 
 (See also the included `sample_backup.sh` script.)
