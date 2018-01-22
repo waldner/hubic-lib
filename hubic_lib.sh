@@ -487,34 +487,40 @@ hubic_parse_args(){
     case $1 in
       -c|--container)
         hubic_current_container=$2
+        shift 2
         ;;
 
       -p|--path)
         hubic_current_path=$2
+        shift 2
         ;;
     
       -l|--local)
         hubic_current_local_file=$2
+        shift 2
         ;;
 
       -r|--remote)
         hubic_current_remote_file=$2
+        shift 2
         ;;
 
       -sc|--success-code)
         IFS=',' read -r -a hubic_current_success_codes <<< "$2"
+        shift 2
         ;;
 
       -o|--operation)
         hubic_current_operation=$2
+        shift 2
         ;;
 
       *)
-        hubic_log WARNING "Unknown option/arg '$1 $2', skipping..."
+        hubic_log WARNING "Unknown option/arg: '$1', skipping..."
+        shift
         ;;
     esac
 
-    shift 2
   done
 
   [ "$hubic_current_container" = "" ] && hubic_current_container=default
