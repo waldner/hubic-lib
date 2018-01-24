@@ -7,7 +7,7 @@ hubic_get_curtime(){
 }
 
 hubic_curtime=$(hubic_get_curtime)
-hubic_curtime=${curtime/ /_}
+hubic_curtime=${hubic_curtime/ /_}
 
 hubic_log_file="/tmp/hubic_${hubic_curtime}.log"
 
