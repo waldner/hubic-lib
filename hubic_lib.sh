@@ -334,6 +334,7 @@ hubic_do_operation(){
       if [ $retries -lt $hubic_retries ]; then
         ((retries++))
         hubic_log WARNING "Retrying operation $hubic_current_operation ($retries of $hubic_retries)..."
+        sleep 5
       else
         hubic_log WARNING "Maximum number of tries exceeded for $hubic_current_operation, giving up..."
         return 1
