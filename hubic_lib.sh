@@ -123,7 +123,9 @@ hubic_get_oauth_id(){
 
   hubic_parse_args -o "${FUNCNAME[0]#hubic_}" -sc 200
 
-  if ! hubic_do_operation "${hubic_first_url}"; then
+  hubic_last_http_url="${hubic_first_url}"
+
+  if ! hubic_do_operation -X GET; then
     return 1
   fi
   
@@ -139,6 +141,8 @@ hubic_grant_access(){
 
   hubic_parse_args -o "${FUNCNAME[0]#hubic_}" -sc 302
 
+  hubic_last_http_url="https://api.hubic.com/oauth/auth/"
+
   # submit form accepting everything
   if ! hubic_do_operation -X POST \
     -A "Mozilla/5.0 (Windows NT 6.3; WOW64; rv:30.0) Gecko/20100101 Firefox/30.0" \
@@ -153,8 +157,7 @@ hubic_grant_access(){
     --data-urlencode "action=accepted" \
     --data-urlencode "account=r" \
     --data-urlencode "login=${hubic_login}" \
-    --data-urlencode "user_pwd=${hubic_pass}" \
-    https://api.hubic.com/oauth/auth/; then
+    --data-urlencode "user_pwd=${hubic_pass}"; then
     return 1
   fi
 
@@ -184,12 +187,13 @@ hubic_get_access_token(){
 
   hubic_log INFO "Getting access token..."
 
+  hubic_last_http_url="https://api.hubic.com/oauth/token/"
+
   if ! hubic_do_operation -X POST \
     -H "Authorization: Basic ${base64_auth}" \
     --data-urlencode "code=${hubic_auth_code}" \
     --data-urlencode "redirect_uri=${hubic_redir_url}" \
-    --data-urlencode "grant_type=authorization_code" \
-    https://api.hubic.com/oauth/token/; then
+    --data-urlencode "grant_type=authorization_code"; then
 
     return 1
   fi
@@ -211,9 +215,10 @@ hubic_get_file_credentials(){
 
   hubic_parse_args -o "${FUNCNAME[0]#hubic_}" -sc 200
 
+  hubic_last_http_url="https://api.hubic.com/1.0/account/credentials/"
+
   if ! hubic_do_operation -X GET \
-    -H "Authorization: Bearer ${hubic_access_token}" \
-    https://api.hubic.com/1.0/account/credentials/; then
+    -H "Authorization: Bearer ${hubic_access_token}"; then
     return 1
   fi
 
@@ -282,9 +287,9 @@ hubic_download_file(){
 
   hubic_log INFO "Downloading remote file '${hubic_current_container}/$src' to local file '$hubic_current_local_file'"
 
+  hubic_last_http_url="${hubic_file_endpoint}/${hubic_current_container}/${src}"
   hubic_do_operation -X GET -o "$hubic_current_local_file" \
-    -H "X-Auth-Token: $hubic_file_token" \
-    "${hubic_file_endpoint}/${hubic_current_container}/${src}"
+    -H "X-Auth-Token: $hubic_file_token"
 
 }
 
@@ -312,12 +317,13 @@ hubic_upload_file(){
 
   hubic_log INFO "Uploading local file '$hubic_current_local_file' to remote '${hubic_current_container}/${dest}'"
 
+  hubic_last_http_url="${hubic_file_endpoint}/${hubic_current_container}/${dest}"
+
   # disable Expect: 100 header
   hubic_do_operation -X PUT \
     -T "${hubic_current_local_file}" \
     -H "X-Auth-Token: $hubic_file_token" \
-    -H "Expect:" \
-    "${hubic_file_endpoint}/${hubic_current_container}/${dest}"
+    -H "Expect:"
 }
 
 hubic_do_operation(){
@@ -326,6 +332,8 @@ hubic_do_operation(){
   local result
 
   while true; do
+
+    hubic_log DEBUG "Sending request to $hubic_last_http_url, arguments: $*"
 
     hubic_do_single_operation "$@"
 
@@ -396,10 +404,10 @@ hubic_create_container(){
 
   hubic_log INFO "Creating container $hubic_current_container..."
 
+  hubic_last_http_url="${hubic_file_endpoint}/${hubic_current_container}"
   hubic_do_operation -X PUT \
     -H "X-Auth-Token: $hubic_file_token" \
-    -H "Content-length: 0" \
-    "${hubic_file_endpoint}/${hubic_current_container}"
+    -H "Content-length: 0"
 }
 
 hubic_delete_container(){
@@ -410,10 +418,11 @@ hubic_delete_container(){
   
   hubic_log INFO "Deleting container $hubic_current_container..."
 
+  hubic_last_http_url="${hubic_file_endpoint}/${hubic_current_container}"
+
   hubic_do_operation -X DELETE \
     -H "X-Auth-Token: $hubic_file_token" \
-    -H "Content-length: 0" \
-    "${hubic_file_endpoint}/${hubic_current_container}"
+    -H "Content-length: 0"
 }
 
 
@@ -425,12 +434,13 @@ hubic_list_containers(){
  
   local retval
  
-  hubic_object_list=()
+  hubic_object_list=()  
+
+  hubic_last_http_url="${hubic_file_endpoint}/"
 
   hubic_do_operation -X GET \
     -H "X-Auth-Token: $hubic_file_token" \
-    -H "Content-length: 0" \
-    "${hubic_file_endpoint}/"
+    -H "Content-length: 0"
 
   retval=$?
 
@@ -450,12 +460,13 @@ hubic_create_directory(){
   hubic_parse_args "$@" -o "${FUNCNAME[0]#hubic_}" -sc 201
 
   hubic_log INFO "Creating directory '$hubic_current_path'..."
-  
+ 
+  hubic_last_http_url="${hubic_file_endpoint}/${hubic_current_container}/${hubic_current_path}"
+ 
   hubic_do_operation -X PUT \
     -H "X-Auth-Token: $hubic_file_token" \
     -H "Content-type: application/directory" \
-    -H "Content-length: 0" \
-    "${hubic_file_endpoint}/${hubic_current_container}/${hubic_current_path}"
+    -H "Content-length: 0"
 }
 
 hubic_do_curl(){
@@ -465,7 +476,8 @@ hubic_do_curl(){
   result=$(
     $curl -s -D- \
     -b "$hubic_cookiejar" -c "$hubic_cookiejar" \
-    "$@"
+    "$@" \
+    "$hubic_last_http_url"
   )
 
   hubic_last_http_headers=$($perl -pe 'exit if /^\r$/;' <<< "$result")
@@ -542,9 +554,10 @@ hubic_list_files(){
 
   hubic_log INFO "Getting object list for '${hubic_current_container}/${hubic_current_path}'"
 
+  hubic_last_http_url="${hubic_file_endpoint}/${hubic_current_container}/?limit=10000&prefix=${hubic_current_path}"
+
   hubic_do_operation -X GET \
-    -H "X-Auth-Token: $hubic_file_token" \
-    "${hubic_file_endpoint}/${hubic_current_container}/?limit=10000&prefix=${hubic_current_path}"
+    -H "X-Auth-Token: $hubic_file_token"
   
   retval=$?
 
@@ -564,9 +577,10 @@ hubic_delete_object(){
 
   hubic_log INFO "Deleting object '${hubic_current_container}/${hubic_current_path}'"
 
+  hubic_last_http_url="${hubic_file_endpoint}/${hubic_current_container}/${hubic_current_path}"
+
   hubic_do_operation -X DELETE \
-    -H "X-Auth-Token: $hubic_file_token" \
-    "${hubic_file_endpoint}/${hubic_current_container}/${hubic_current_path}"
+    -H "X-Auth-Token: $hubic_file_token"
 }
 
 
