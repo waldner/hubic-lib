@@ -3,7 +3,12 @@
 declare -A hubic_log_levels=( [DEBUG]=0 [INFO]=1 [NOTICE]=2 [WARNING]=3 [ERROR]=4 )
 
 hubic_get_curtime(){
-  perl -MTime::localtime -e '$tm = localtime; printf("%04d-%02d-%02d %02d:%02d:%02d\n", $tm->year+1900, ($tm->mon)+1, $tm->mday, $tm->hour, $tm->min, $tm->sec);'
+  # avoid spawning a process if we have a capable bash
+  if [ ${BASH_VERSINFO[0]} -ge 4 ] && [ ${BASH_VERSINFO[1]} -ge 2 ]; then
+    printf '%(%Y-%m-%d %H:%M:%S)T\n' -1
+  else
+    perl -MTime::localtime -e '$tm = localtime; printf("%04d-%02d-%02d %02d:%02d:%02d\n", $tm->year+1900, ($tm->mon)+1, $tm->mday, $tm->hour, $tm->min, $tm->sec);'
+  fi
 }
 
 hubic_curtime=$(hubic_get_curtime)
@@ -364,6 +369,12 @@ hubic_do_single_operation(){
     return 0
   else
     hubic_log WARNING "$hubic_current_operation got HTTP code $hubic_last_http_code, expected $(hubic_join_array "${hubic_current_success_codes[@]}")"
+
+    if [ "$hubic_current_operation" = "get_oauth_id" ] && [ "$hubic_last_http_code" = "302" ]; then
+      local redirect_url=$($perl -ne 'if ($_ =~ /^Location:/) { print; exit };' <<< "$hubic_last_http_headers")
+      hubic_log WARNING "Redirect URL is: $redirect_url"
+    fi
+
     return 1
   fi
 }
