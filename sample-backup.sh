@@ -8,7 +8,7 @@ hubic_get_userdef_credentials(){
   hubic_return_url="http://localhost/"
 }
 
-. hubic_lib.sh
+. hubic-lib.sh
 
 now=$(date "+%F_%H-%M-%S")
 
