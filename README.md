@@ -8,13 +8,13 @@ The only dependencies needed are [bash](https://www.gnu.org/software/bash/), [cu
 
 ## Installation
 
-No special installation needed. Just put **`hubic_lib.sh`** wherever you want. You have to know the location because you'll have to source it in your script.
+No special installation needed. Just put **`hubic-lib.sh`** wherever you want. You have to know the location because you'll have to source it in your script.
 
 ## Getting started
 
 - Create an application in your HubiC control panel. Name it whatever you want, and use a made-up return URL (eg, http://localhost/). It's not used here, but it has to be present.
 
-- Source `hubic_lib.sh` in your script
+- Source `hubic-lib.sh` in your script
 
 - Implement a function called `hubic_get_userdef_credentials` that sets some environment variables with suitable values (`hubic_login` and `hubic_pass` you should know, and the others can be found in your HubiC control panel app settings). See below.
 
@@ -42,7 +42,7 @@ Each file API operation ends up invoking `hubic_do_operation` internally, after 
 
 ## Sample code
 
-(See also the included `sample_backup.sh` script.)
+(See also the included `sample-backup.sh` script.)
 
 ```
 #!/bin/bash
@@ -57,7 +57,7 @@ hubic_get_userdef_credentials(){
   # or read them from a file, from vault, whatever, as long as you set the above variables
 }
 
-. hubic_lib.sh
+. /path/to/hubic-lib.sh
 
 # OPTIONAL: configure logging
 
