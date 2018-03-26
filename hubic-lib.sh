@@ -81,7 +81,7 @@ hubic_get_credentials(){
 
   local hubic_userdef_cred_function=hubic_get_userdef_credentials
 
-  if ! declare -F hubic_get_userdef_credentials >/dev/null; then
+  if ! declare -F $hubic_userdef_cred_function >/dev/null; then
     hubic_log ERROR "Function '$hubic_userdef_cred_function()' does not exist, must define it and make sure it sets variables 'hubic_client_id', 'hubic_client_key', 'hubic_login', 'hubic_pass', 'hubic_return_url'"
     return 1
   fi
