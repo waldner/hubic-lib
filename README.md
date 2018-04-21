@@ -16,7 +16,7 @@ No special installation needed. Just put **`hubic-lib.sh`** wherever you want. Y
 
 - Source `hubic-lib.sh` in your script
 
-- Implement a function called `hubic_get_userdef_credentials` that sets some environment variables with suitable values (`hubic_login` and `hubic_pass` you should know, and the others can be found in your HubiC control panel app settings). See below.
+- Implement a function called `hubic_get_userdef_credentials` that sets some environment variables with suitable values (`hubic_lib[login]` and `hubic_lib[pass]` you should know, and the others can be found in your HubiC control panel app settings). See below.
 
 - Call `hubic_api_init` and check that it returns without errors.
 
@@ -28,17 +28,17 @@ No special installation needed. Just put **`hubic-lib.sh`** wherever you want. Y
 
 ## Logging
 
-Sourcing the library gives you access to a very rudimental log function called `hubic_log`. Its arguments are a log level (one of  DEBUG, INFO, NOTICE, WARNING, ERROR) and the message to log. You can use this function to log your application messages together with those coming from the library. By default, the library detects automatically whether to log to file or to stdout (if stdout is not a terminal, log to file; otherwise log to stdout). This allows eg running from cron without getting output, but still being able to manually run on the command line and see the messages. The log destination can however be forced. The minimum logging level can also be configured, or logging can be turned off altogether. See code below for examples.
+Sourcing the library gives you access to a very rudimentary log function called `hubic_log`. Its arguments are a log level (one of  DEBUG, INFO, NOTICE, WARNING, ERROR) and the message to log. You can use this function to log your application messages together with those coming from the library. By default, the library detects automatically whether to log to file or to stdout (if stdout is not a terminal, log to file; otherwise log to stdout). This allows eg running from cron without getting output, but still being able to manually run on the command line and see the messages. The log destination can however be forced. The minimum logging level can also be configured, or logging can be turned off altogether. See code below for examples.
 
 ## Internals
 
-Internal communication is via global variables. Yes, I know. This is bash.
+All the variables used by the library are kept in an associative array called `hubic_lib`. 
 
 Since the REST API sometimes fails with transient errors, each operation defines a series of HTTP return codes upon which the function is considered to have completed; any other HTTP code produces a retry of the operation, up to a maximum, by default, of 3 times.
 
-After each file API function invocation, the three variables `hubic_last_http_headers`, `hubic_last_http_body` and `hubic_last_http_code` contain what their name says, so they can be inspected in your code for extra control. Additionally, after operations that return lists of objects, the array `hubic_object_list` is set with such list, and can be accessed from your code.
+After each file API function invocation, the three variables `hubic_lib['last_http_headers']`, `hubic_lib['last_http_body']` and `hubic_lib['last_http_code']` contain what their name says, so they can be inspected in your code for extra control. Additionally, after operations that return lists of objects, `hubic_lib['object_list']` is set with such list (a single variable of newline-separated strings), and can be accessed from your code.
 
-Each file API operation ends up invoking `hubic_do_operation` internally, after setting the appropriate global variables (via `hubic_parse_args`). `hubic_do_operation`, in turn, calls `hubic_do_single_operation`, handling retries in case of transient errors. Finally, `hubic_do_single_operation` calls `hubic_do_curl` (which does the actual curl invocation) and returns success or failure (based on the HTTP return code) all the way up.
+Each file API operation ends up invoking `hubic_do_operation` internally, after setting the appropriate (global) parameters (via `hubic_parse_args`). `hubic_do_operation`, in turn, calls `hubic_do_single_operation`, handling retries in case of transient errors. Finally, `hubic_do_single_operation` calls `hubic_do_curl` (which does the actual curl invocation) and returns success or failure (based on the HTTP return code) all the way up.
 
 ## Sample code
 
@@ -48,11 +48,11 @@ Each file API operation ends up invoking `hubic_do_operation` internally, after 
 #!/bin/bash
 
 hubic_get_userdef_credentials(){
-  hubic_client_id=XXXXX
-  hubic_client_key=YYYYY
-  hubic_login=foo@foo.com
-  hubic_pass=ZZZZZZ
-  hubic_return_url="http://localhost/"   # or whatever you used in the app
+  hubic_lib['client_id']=XXXXX
+  hubic_lib['client_key']=YYYYY
+  hubic_lib['login']=foo@foo.com
+  hubic_lib['pass']=ZZZZZZ
+  hubic_lib['return_url']="http://localhost/"   # or whatever you used in the app
   
   # or read them from a file, from vault, whatever, as long as you set the above variables
 }
@@ -106,15 +106,29 @@ hubic_delete_container -c oldcontainer
 # list containers
 hubic_list_containers
 
+declare -a containers
+
+oIFS=$IFS
+IFS=$'\n'
+containers=( ${hubic_lib['object_list']} )
+IFS=$oIFS
+
 # hubic_object_list is set by the previous function
-for container in "${hubic_object_list[@]}"; do
+for container in "${containers[@]}"; do
   : # do something with "$container"
 done
 
 # list files (really objects), optionally specify a path
 hubic_list_files -c newcontainer -p foobar
 
-for object in "${hubic_object_list[@]}"; do
+declare -a objects
+
+oIFS=$IFS
+IFS=$'\n'
+objects=( ${hubic_lib['object_list']} )
+IFS=$oIFS
+
+for object in "${objects[@]}"; do
   : # do something with "$object"
 done
 

@@ -1,11 +1,11 @@
 #!/bin/bash
 
 hubic_get_userdef_credentials(){
-  hubic_client_id="api_hubic_xxxxxxxxxxxxxxxxxxxxxx"
-  hubic_client_key="yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
-  hubic_login="my@hubic.login"
-  hubic_pass="somesecretpassword"
-  hubic_return_url="http://localhost/"
+  hubic_lib['client_id']="api_hubic_xxxxxxxxxxxxxxxxxxxxxx"
+  hubic_lib['client_key']="yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+  hubic_lib['login']="my@hubic.login"
+  hubic_lib['pass']="somesecretpassword"
+  hubic_lib['return_url']="http://localhost/"
 }
 
 . hubic-lib.sh
@@ -35,7 +35,12 @@ declare -a files
 
 hubic_list_files -p backups
 
-files=( $(printf '%s\n' "${hubic_object_list[@]}" | sort) )
+oIFS=$IFS
+IFS=$'\n'
+files=( ${hubic_lib['object_list']} )
+files=( $(printf '%s\n' "${files[@]}" | sort) )
+IFS=$oIFS
+
 nfiles=${#files[@]}
 
 if [ $nfiles -gt $keep ]; then
