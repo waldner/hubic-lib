@@ -323,6 +323,7 @@ hubic_upload_file(){
   hubic_do_operation -X PUT \
     -T "${hubic_lib['current_local_file']}" \
     -H "X-Auth-Token: ${hubic_lib['file_token']}" \
+    --no-silent --progress-bar \
     "${hubic_lib['file_endpoint']}/${hubic_lib['current_container']}/${dest}" 
 }
 
