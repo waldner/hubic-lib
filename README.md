@@ -69,6 +69,9 @@ hubic_get_userdef_credentials(){
 # OPTIONAL: configure retry behaviour
 # hubic_set_retries 4              # retry up to 4 times when operation fails
 
+# OPTIONAL: configure OAuth flow ("serverside" or "implicit"), default "serverside"
+# hubic_set_oauth_flow implicit
+
 # Init API (auth app, get tokens, etc)
 if ! hubic_api_init; then
   echo "Hubic library API initialization failed" >&2

@@ -35,6 +35,11 @@ hubic_log(){
   fi
 }
 
+hubic_set_oauth_flow(){
+  hubic_lib['oauth_flow']=$1
+  [[ ! "${hubic_lib['oauth_flow']}" =~ ^(serverside|implicit)$ ]] && hubic_lib['oauth_flow']='serverside'
+}
+
 hubic_set_retries(){
   hubic_lib['retries']=$1
   [[ ! "${hubic_lib['retries']}" =~ ^[0-9]+$ ]] && hubic_lib['retries']=3
@@ -71,6 +76,7 @@ hubic_set_log_destination(){
 hubic_set_log_level INFO
 hubic_set_logging_enabled "1"
 hubic_set_log_destination
+hubic_set_oauth_flow serverside
 hubic_set_retries 3
 
 hubic_api_cleanup(){
@@ -84,19 +90,19 @@ hubic_get_credentials(){
   local hubic_userdef_cred_function=hubic_get_userdef_credentials
 
   if ! declare -F $hubic_userdef_cred_function >/dev/null; then
-    hubic_log ERROR "Function '$hubic_userdef_cred_function()' does not exist, must define it and make sure it sets variables 'hubic_lib['client_id']', 'hubic_lib['client_key']', 'hubic_lib['login']', 'hubic_lib['pass']', 'hubic_lib['return_url']'"
+    hubic_log ERROR "Function '$hubic_userdef_cred_function()' does not exist, must define it and make sure it sets variables 'hubic_lib['client_id']', 'hubic_lib['client_key']' (if using serverside OAuth flow), 'hubic_lib['login']', 'hubic_lib['pass']', 'hubic_lib['return_url']'"
     return 1
   fi
 
   $hubic_userdef_cred_function   # user MUST implement this
 
   ( [ "${hubic_lib['client_id']}" != "" ] && \
-    [ "${hubic_lib['client_key']}" != "" ] && \
+    ( [ "${hubic_lib['oauth_flow']}" = "implicit" ] || [ "${hubic_lib['client_key']}" != "" ] ) && \
     [ "${hubic_lib['login']}" != "" ] && \
     [ "${hubic_lib['pass']}" != "" ] && \
     [ "${hubic_lib['return_url']}" != "" ] ) || \
 
-    { hubic_log ERROR "Cannot get hubic credentials; make sure '$hubic_userdef_cred_function()' sets variables 'hubic_lib['client_id']', 'hubic_lib['client_key']', 'hubic_lib['login']', 'hubic_lib['pass']', 'hubic_lib['return_url']'" && return 1; }
+    { hubic_log ERROR "Cannot get hubic credentials; make sure '$hubic_userdef_cred_function()' sets variables 'hubic_lib['client_id']', 'hubic_lib['client_key']' (if using serverside OAuth flow), 'hubic_lib['login']', 'hubic_lib['pass']', 'hubic_lib['return_url']'" && return 1; }
 }
 
 check_required_binaries(){
@@ -176,11 +182,19 @@ hubic_grant_access(){
 
   # extract code from url
 
-  # https://whatever.com/?code=cccccccccccccccccccccccccccccc&scope=nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn&state=zzzzzzzzzzzzzz
+  # on server-side flow, url has the format:
+  #   https://whatever.com/?code=cccccccccccccccccccccccccccccc&scope=nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn&state=zzzzzzzzzzzzzz
+  # on implicit flow, url has the format:
+  #   https://whatever.com/oauth#access_token=ttttttttttttt&expires_in=3600&token_type=Bearer&scope=nnnnnnnnnnnnnnnnnnnnn&state=zzzzzzzzzzz 
 
-  hubic_lib['auth_code']=$(${hubic_lib['perl']} -n0777e 's|.*code=([^&]+).*|$1|s; print' <<< "${hubic_lib['redir_url']}")
-
-  hubic_log DEBUG "Auth code is ${hubic_lib['auth_code']}"
+  if [ "${hubic_lib['oauth_flow']}" = "serverside" ]; then
+    hubic_lib['auth_code']=$(${hubic_lib['perl']} -n0777e 's|.*code=([^&]+).*|$1|s; print' <<< "${hubic_lib['redir_url']}")
+    hubic_log DEBUG "Server-side flow: auth code is ${hubic_lib['auth_code']}"
+  else
+    # implicit flow, set access token directly
+    hubic_lib['access_token']=$(${hubic_lib['perl']} -n0777e 's|.*access_token=([^&]+).*|$1|s; print' <<< "${hubic_lib['redir_url']}")
+    hubic_log DEBUG "Implicit flow: access token is ${hubic_lib['auth_code']}"
+  fi
 }
 
 hubic_get_access_token(){
@@ -251,12 +265,22 @@ hubic_api_init(){
 
   local return_url_encoded=$(hubic_urlencode "${hubic_lib['return_url']}")
 
-  hubic_lib['first_url']="https://api.hubic.com/oauth/auth/?client_id=${hubic_lib['client_id']}&redirect_uri=${return_url_encoded}&scope=usage.r,account.r,getAllLinks.r,credentials.r,activate.w,links.drw&response_type=code&state=zzzzzzzzzzzzzz"
+  local response_type
+
+  if [ "${hubic_lib['oauth_flow']}" = "serverside" ]; then
+    response_type="code"
+  else
+    response_type="token"
+  fi
+
+  hubic_lib['first_url']="https://api.hubic.com/oauth/auth/?client_id=${hubic_lib['client_id']}&redirect_uri=${return_url_encoded}&scope=usage.r,account.r,getAllLinks.r,credentials.r,activate.w,links.drw&response_type=${response_type}&state=zzzzzzzzzzzzzz"
 
   hubic_get_oauth_id || return 1
   sleep 3
   hubic_grant_access || return 1
-  hubic_get_access_token || return 1
+  if [ "${hubic_lib['oauth_flow']}" = "serverside" ]; then
+    hubic_get_access_token || return 1
+  fi
   hubic_get_file_credentials || return 1
 
   hubic_log NOTICE "HUBIC API initialization completed"
