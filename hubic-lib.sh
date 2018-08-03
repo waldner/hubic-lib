@@ -343,11 +343,17 @@ hubic_upload_file(){
 
   hubic_log INFO "Uploading local file '${hubic_lib['current_local_file']}' to remote '${hubic_lib['current_container']}/${dest}'"
 
+  local -a progress_args=()
+
+  if [ -t 1 ] || [ "${hubic_lib['log_destination']}" = "stdout" ]; then
+    progress_args=( --no-silent --progress-bar )
+  fi
+
   # disable Expect: 100 header
   hubic_do_operation -X PUT \
     -T "${hubic_lib['current_local_file']}" \
     -H "X-Auth-Token: ${hubic_lib['file_token']}" \
-    --no-silent --progress-bar \
+    "${progress_args[@]}" \
     "${hubic_lib['file_endpoint']}/${hubic_lib['current_container']}/${dest}" 
 }
 
