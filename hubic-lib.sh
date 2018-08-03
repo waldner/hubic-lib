@@ -193,7 +193,7 @@ hubic_grant_access(){
   else
     # implicit flow, set access token directly
     hubic_lib['access_token']=$(${hubic_lib['perl']} -n0777e 's|.*access_token=([^&]+).*|$1|s; print' <<< "${hubic_lib['redir_url']}")
-    hubic_log DEBUG "Implicit flow: access token is ${hubic_lib['auth_code']}"
+    hubic_log DEBUG "Implicit flow: access token is ${hubic_lib['access_token']}"
   fi
 }
 
