@@ -6,7 +6,7 @@ declare -A hubic_lib=()
 
 hubic_get_curtime(){
   # avoid spawning a process if we have a capable bash
-  if [ ${BASH_VERSINFO[0]} -ge 4 ] && [ ${BASH_VERSINFO[1]} -ge 2 ]; then
+  if [ "${BASH_VERSINFO[0]}" -ge 4 ] && [ "${BASH_VERSINFO[1]}" -ge 2 ]; then
     printf '%(%Y-%m-%d %H:%M:%S)T\n' -1
   else
     perl -MTime::localtime -e '$tm = localtime; printf("%04d-%02d-%02d %02d:%02d:%02d\n", $tm->year+1900, ($tm->mon)+1, $tm->mday, $tm->hour, $tm->min, $tm->sec);'
@@ -24,9 +24,10 @@ hubic_log(){
 
   local level=$1 msg=$2
 
-  local curtime=$(hubic_get_curtime)
+  local curtime
+  curtime=$(hubic_get_curtime)
  
-  if [ ${hubic_lib['logging_enabled']} != "0" ] && [ ${hubic_log_levels[$level]} -ge ${hubic_lib['current_log_level']} ]; then
+  if [ "${hubic_lib['logging_enabled']}" != "0" ] && [ "${hubic_log_levels[$level]}" -ge "${hubic_lib['current_log_level']}" ]; then
     if [ "${hubic_lib['log_destination']}" = "stdout" ]; then
       echo "$curtime $level: $msg"
     else
@@ -75,7 +76,7 @@ hubic_set_log_destination(){
 #### DEFAULT VALUES
 hubic_set_log_level INFO
 hubic_set_logging_enabled "1"
-hubic_set_log_destination
+hubic_set_log_destination ""
 hubic_set_oauth_flow serverside
 hubic_set_retries 3
 
@@ -97,7 +98,7 @@ hubic_get_credentials(){
   $hubic_userdef_cred_function   # user MUST implement this
 
   ( [ "${hubic_lib['client_id']}" != "" ] && \
-    ( [ "${hubic_lib['oauth_flow']}" = "implicit" ] || [ "${hubic_lib['client_key']}" != "" ] ) && \
+    { [ "${hubic_lib['oauth_flow']}" = "implicit" ] || [ "${hubic_lib['client_key']}" != "" ]; } && \
     [ "${hubic_lib['login']}" != "" ] && \
     [ "${hubic_lib['pass']}" != "" ] && \
     [ "${hubic_lib['return_url']}" != "" ] ) || \
@@ -108,16 +109,14 @@ hubic_get_credentials(){
 check_required_binaries(){
 
   hubic_log INFO "Checking required binaries..."
-    
-  local retcode=0
 
   hubic_lib[curl]=$(command -v curl)
   hubic_lib[perl]=$(command -v perl)
   hubic_lib[rm]=$(command -v rm)
 
-  ( [ "${hubic_lib['curl']}" != "" ] && \
+  { [ "${hubic_lib['curl']}" != "" ] && \
     [ "${hubic_lib['perl']}" != "" ] && \
-    [ "${hubic_lib['rm']}" != "" ] ) || \
+    [ "${hubic_lib['rm']}" != "" ]; } || \
   { hubic_log ERROR "Cannot find needed binaries, make sure you have curl, perl and rm in your PATH" && return 1; }
 }
 
@@ -193,13 +192,14 @@ hubic_grant_access(){
   else
     # implicit flow, set access token directly
     hubic_lib['access_token']=$(${hubic_lib['perl']} -n0777e 's|.*access_token=([^&]+).*|$1|s; print' <<< "${hubic_lib['redir_url']}")
-    hubic_log DEBUG "Implicit flow: access token is ${hubic_lib['access_token']}"
+    hubic_log DEBUG "Implicit flow: access token is ${hubic_lib['auth_code']}"
   fi
 }
 
 hubic_get_access_token(){
 
-  local base64_auth=$(${hubic_lib['perl']} -MMIME::Base64 -e 'print MIME::Base64::encode_base64($ARGV[0], "")' "${hubic_lib['client_id']}:${hubic_lib['client_key']}")
+  local base64_auth
+  base64_auth=$(${hubic_lib['perl']} -MMIME::Base64 -e 'print MIME::Base64::encode_base64($ARGV[0], "")' "${hubic_lib['client_id']}:${hubic_lib['client_key']}")
 
   hubic_parse_args -o "${FUNCNAME[0]#hubic_}" -sc 200
 
@@ -263,7 +263,8 @@ hubic_api_init(){
   ${hubic_lib['rm']} -f "${hubic_lib['cookiejar']}"
   hubic_lib['api_initialized']="0"
 
-  local return_url_encoded=$(hubic_urlencode "${hubic_lib['return_url']}")
+  local return_url_encoded
+  return_url_encoded=$(hubic_urlencode "${hubic_lib['return_url']}")
 
   local response_type
 
@@ -343,17 +344,11 @@ hubic_upload_file(){
 
   hubic_log INFO "Uploading local file '${hubic_lib['current_local_file']}' to remote '${hubic_lib['current_container']}/${dest}'"
 
-  local -a progress_args=()
-
-  if [ -t 1 ] || [ "${hubic_lib['log_destination']}" = "stdout" ]; then
-    progress_args=( --no-silent --progress-bar )
-  fi
-
   # disable Expect: 100 header
   hubic_do_operation -X PUT \
     -T "${hubic_lib['current_local_file']}" \
     -H "X-Auth-Token: ${hubic_lib['file_token']}" \
-    "${progress_args[@]}" \
+    --no-silent --progress-bar \
     "${hubic_lib['file_endpoint']}/${hubic_lib['current_container']}/${dest}" 
 }
 
@@ -364,10 +359,8 @@ hubic_do_operation(){
 
   while true; do
 
-    hubic_do_single_operation "$@"
-
-    if [ $? -ne 0 ]; then
-      if [ $retries -lt ${hubic_lib['retries']} ]; then
+    if ! hubic_do_single_operation "$@"; then
+      if [ $retries -lt "${hubic_lib['retries']}" ]; then
         ((retries++))
         hubic_log WARNING "Retrying operation ${hubic_lib['current_operation']} ($retries of ${hubic_lib['retries']})..."
         sleep 5
@@ -386,7 +379,7 @@ hubic_do_single_operation(){
 
   hubic_do_curl "$@"
 
-  if [ $? -ne 0 ]; then
+  if ! hubic_do_curl "$@"; then
     return 1
   fi
 
@@ -396,7 +389,8 @@ hubic_do_single_operation(){
     hubic_log WARNING "${hubic_lib['current_operation']} got HTTP code ${hubic_lib['last_http_code']}, expected ${hubic_lib['current_success_codes']}"
 
     if [ "${hubic_lib['current_operation']}" = "get_oauth_id" ] && [ "${hubic_lib['last_http_code']}" = "302" ]; then
-      local redirect_url=$(${hubic_lib['perl']} -ne 'if ($_ =~ /^Location:/) { print; exit };' <<< "${hubic_lib['last_http_headers']}")
+      local redirect_url
+      redirect_url=$(${hubic_lib['perl']} -ne 'if ($_ =~ /^Location:/) { print; exit };' <<< "${hubic_lib['last_http_headers']}")
       hubic_log WARNING "Redirect URL is: $redirect_url"
     fi
 
@@ -406,7 +400,7 @@ hubic_do_single_operation(){
 
 hubic_join_array(){
 
-  local string= sep= element
+  local string="" sep="" element
 
   for element in "$@"; do
     string="${string}${sep}${element}"
@@ -621,6 +615,4 @@ hubic_delete_object(){
     -H "X-Auth-Token: ${hubic_lib['file_token']}" \
     "${hubic_lib['file_endpoint']}/${hubic_lib['current_container']}/${hubic_lib['current_path']}"
 }
-
-
 
