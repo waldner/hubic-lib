@@ -377,8 +377,6 @@ hubic_do_operation(){
 
 hubic_do_single_operation(){
 
-  hubic_do_curl "$@"
-
   if ! hubic_do_curl "$@"; then
     return 1
   fi
