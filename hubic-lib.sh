@@ -367,7 +367,7 @@ hubic_do_operation(){
     if ! hubic_do_single_operation "$@"; then
       if [ $retries -lt "${hubic_lib['retries']}" ]; then
         ((retries++))
-        hubic_log WARNING "Retrying operation ${hubic_lib['current_operation']} ($retries of ${hubic_lib['retries']})..."
+        hubic_log WARNING "Retrying operation ${hubic_lib['current_operation']} ($retries of ${hubic_lib['retries']}): last body is ${hubic_lib['last_http_body']}..."
         sleep 5
       else
         hubic_log WARNING "Maximum number of tries exceeded for ${hubic_lib['current_operation']}, giving up..."
